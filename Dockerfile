@@ -106,16 +106,19 @@ RUN git clone --depth 1 https://github.com/FlameOfIgnis/Pwdb-Public.git /wordlis
 
 RUN git clone --depth 1 https://github.com/assetnote/commonspeak2-wordlists /wordlists/commonspeak2
 
-# oh my tmux
-ENV TERM=xterm-256color
-RUN git clone --depth 1 https://github.com/gpakosz/.tmux.git /root/.tmux && \
-  ln -s -f /root/.tmux/.tmux.conf /root/.tmux.conf && \
-  cp /root/.tmux/.tmux.conf.local /root/
+# # oh my tmux
+# ENV TERM=xterm-256color
+# RUN git clone --depth 1 https://github.com/gpakosz/.tmux.git /root/.tmux && \
+  # ln -s -f /root/.tmux/.tmux.conf /root/.tmux.conf && \
+  # cp /root/.tmux/.tmux.conf.local /root/
 
 # dotfiles
-RUN git clone --depth 1 https://github.com/firefart/dotfiles /opt/dotfiles && \
-  cd /opt/dotfiles && \
-  ./setup.sh
+# RUN git clone --depth 1 https://github.com/firefart/dotfiles /opt/dotfiles && \
+  # cd /opt/dotfiles && \
+  # ./setup.sh
+RUN git clone https://github.com/peterjmorgan/dotfiles-new /root/.dotfiles && \
+  cd /root/.dotfiles && \
+  ./bootstrap
 
 # install go
 RUN url="https://golang.org/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz" && \
@@ -284,12 +287,12 @@ RUN git clone --depth 1 https://github.com/stark0de/nginxpwner.git /opt/nginxpwn
   cd /opt/nginxpwner && \
   python3 -m pip install -r requirements.txt
 
-# NordVPN config
-# https://support.nordvpn.com/Connectivity/Linux/1047409422/Connect-to-NordVPN-using-Linux-Terminal.htm
-RUN wget -nv -O /tmp/nordvpn.zip https://downloads.nordcdn.com/configs/archives/servers/ovpn.zip && \
-  mkdir -p /etc/openvpn/nordvpn && \
-  unzip /tmp/nordvpn.zip -d /etc/openvpn/nordvpn && \
-  rm -f /tmp/nordvpn.zip
+## NordVPN config
+## https://support.nordvpn.com/Connectivity/Linux/1047409422/Connect-to-NordVPN-using-Linux-Terminal.htm
+#RUN wget -nv -O /tmp/nordvpn.zip https://downloads.nordcdn.com/configs/archives/servers/ovpn.zip && \
+#  mkdir -p /etc/openvpn/nordvpn && \
+#  unzip /tmp/nordvpn.zip -d /etc/openvpn/nordvpn && \
+#  rm -f /tmp/nordvpn.zip
 
 COPY docker-entrypoint.sh /usr/local/bin/
 
