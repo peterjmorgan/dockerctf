@@ -1,24 +1,32 @@
-FROM ubuntu:latest
+FROM ubuntu:rolling
 LABEL maintainer="firefart <firefart@gmail.com>"
 
-ARG GOLANG_VERSION="1.19.3"
-ARG GOLANG_SHASUM="74b9640724fd4e6bb0ed2a1bc44ae813a03f1e72a4c76253e2d5c015494430ba"
+# https://go.dev/dl/
+ARG GOLANG_VERSION="1.20"
+ARG GOLANG_SHASUM="5a9ebcc65c1cce56e0d2dc616aff4c4cedcfbda8cc6f0288cc08cda3b18dcbf1"
+# https://aws.amazon.com/corretto/
 ARG JAVA_VERSION="19"
 
 # https://github.com/iBotPeaches/Apktool/releases/latest
-ARG APKTOOL_VERSION="2.6.1"
+ARG APKTOOL_VERSION="2.7.0"
 # https://github.com/skylot/jadx/releases/latest
 ARG JADX_VERSION="1.4.5"
 # https://github.com/leibnitz27/cfr/releases/latest
 ARG CFR_VERSION="0.152"
 # https://github.com/pxb1988/dex2jar/releases/latest
 ARG DEX2JAR_VERSION="2.1"
+# https://learn.microsoft.com/en-us/dotnet/core/install/linux-ubuntu
+ARG DOTNET_VERSION="6.0"
+# https://portswigger.net/burp/releases/community/latest
+ARG BURP_VERSION="2023.1.2"
 
 ENV HISTSIZE=5000
 ENV HISTFILESIZE=10000
 # looks like docker does not set this variable
 ENV USER=root
 ENV DEBIAN_FRONTEND noninteractive
+# disable .NET telemetry
+ENV DOTNET_CLI_TELEMETRY_OPTOUT=1
 
 RUN echo "shopt -s histappend" >> /root/.bashrc
 
@@ -26,19 +34,22 @@ RUN apt-get update && \
   apt-get full-upgrade -y && \
   apt-get install -y \
   # tools
-  git curl wget netcat socat build-essential tmux neovim htop linux-headers-virtual dnsutils software-properties-common apt-utils \
-  jq strace ltrace net-tools gdb gdb-multiarch binwalk steghide testdisk foremost sqlite3 pev yara netmask exiftool bsdmainutils \
-  unzip chromium-browser zsh aircrack-ng imagemagick mkisofs tree openvpn wireguard php \
+  git curl wget netcat-traditional socat build-essential tmux neovim htop linux-headers-virtual dnsutils \
+  software-properties-common apt-utils jq strace ltrace net-tools gdb gdb-multiarch binwalk steghide \
+  testdisk foremost sqlite3 pev yara netmask exiftool bsdmainutils unzip zsh aircrack-ng \
+  imagemagick mkisofs tree openvpn wireguard php \
   # binwalk
   lzop lhasa \
   # sasquatch
   build-essential liblzma-dev liblzo2-dev zlib1g-dev \
   # JohnTheRipper
-  libssl-dev zlib1g-dev yasm pkg-config libgmp-dev libpcap-dev libbz2-dev nvidia-opencl-dev ocl-icd-opencl-dev opencl-headers pocl-opencl-icd \
+  libssl-dev zlib1g-dev yasm pkg-config libgmp-dev libpcap-dev libbz2-dev nvidia-opencl-dev \
+  ocl-icd-opencl-dev opencl-headers pocl-opencl-icd \
   # scanning
   nmap masscan \
   # python stuff
-  python2 python3 python3-wheel python3-venv python3-requests python3-virtualenv python3-bs4 python3-pip python3-pycryptodome \
+  python2 python3 python3-wheel python3-venv python3-requests python3-virtualenv \
+  python3-bs4 python3-pip python3-pycryptodome \
   # wpscan dependencies
   ruby ruby-dev rubygems zlib1g-dev liblzma-dev \
   # wfuzz dependencies
@@ -53,6 +64,10 @@ RUN apt-get update && \
   libmpfr-dev libmpc-dev \
   # android stuff
   android-sdk \
+  # .NET SDK
+  dotnet-sdk-${DOTNET_VERSION} \
+  # google-chrome deps
+  fonts-liberation libu2f-udev libvulkan1 xdg-utils \
   && \
   # java (needs wget and software-properties-common from above)
   wget -nv -O- https://apt.corretto.aws/corretto.key | apt-key add - && \
@@ -63,12 +78,18 @@ RUN apt-get update && \
   apt-get -y clean && \
   rm -rf /var/lib/apt/lists/*
 
+# google chrome as chromium needs snap to install
+RUN wget -O /tmp/google-chrome-stable_current_amd64.deb -nv "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb" && \
+  apt-get install -y /tmp/google-chrome-stable_current_amd64.deb && \
+  rm -f /tmp/google-chrome-stable_current_amd64.deb
+
 # rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="${PATH}:/root/.cargo/bin"
 
-# install arti (tor support)
-RUN cargo install arti
+# arti: tor support
+# rustscan: portscanner
+RUN cargo install arti rustscan
 
 # Install PIP2 and packages (are not available on the repo)
 RUN curl https://bootstrap.pypa.io/pip/2.7/get-pip.py -o /tmp/get-pip.py && \
@@ -293,6 +314,18 @@ RUN git clone --depth 1 https://github.com/stark0de/nginxpwner.git /opt/nginxpwn
 #  mkdir -p /etc/openvpn/nordvpn && \
 #  unzip /tmp/nordvpn.zip -d /etc/openvpn/nordvpn && \
 #  rm -f /tmp/nordvpn.zip
+
+# LaZagneForensic
+RUN git clone --depth 1 https://github.com/AlessandroZ/LaZagneForensic.git /opt/LaZagneForensic && \
+  cd /opt/LaZagneForensic && \
+  pip2 install markerlib && \
+  pip2 install distribute && \
+  pip2 install -r requirements.txt
+
+# Burp
+RUN wget -nv -O /opt/burp.jar https://portswigger-cdn.net/burp/releases/download?product=community&version=${BURP_VERSION}&type=Jar && \
+  echo -e '#!/usr/bin/sh\njava -Xmx4g -jar /opt/burp.jar --disable-auto-update' > /usr/local/sbin/burp && \
+  chmod +x /usr/local/sbin/burp
 
 COPY docker-entrypoint.sh /usr/local/bin/
 
